@@ -48,13 +48,13 @@ def preprocess(path, scale=3):
     input_: image applied bicubic interpolation (low-resolution)
     label_: image with original resolution (high-resolution)
   """
-  image = imread(path, is_grayscale=True)
-  label_ = modcrop(image, scale)
+  image = imread(path, is_grayscale=True) # read as YCrCb format
+  label_ = modcrop(image, scale) # crop 使得整除于3
 
   # Must be normalized
   image = image / 255.
   label_ = label_ / 255.
-
+  # 使输入图片模糊
   input_ = scipy.ndimage.interpolation.zoom(label_, (1./scale), prefilter=False)
   input_ = scipy.ndimage.interpolation.zoom(input_, (scale/1.), prefilter=False)
 
@@ -157,7 +157,7 @@ def input_setup(sess, config):
           sub_label_sequence.append(sub_label)
 
   else:
-    input_, label_ = preprocess(data[2], config.scale)
+    input_, label_ = preprocess(data[1], config.scale) # 指定了只选第二个，也就是butterfly
 
     if len(input_.shape) == 3:
       h, w, _ = input_.shape

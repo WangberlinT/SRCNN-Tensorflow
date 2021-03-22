@@ -23,7 +23,7 @@ class SRCNN(object):
                sess, 
                image_size=33,
                label_size=21, 
-               batch_size=128,
+               batch_size=128, 
                c_dim=1, 
                checkpoint_dir=None, 
                sample_dir=None):
@@ -101,7 +101,7 @@ class SRCNN(object):
           counter += 1
           _, err = self.sess.run([self.train_op, self.loss], feed_dict={self.images: batch_images, self.labels: batch_labels})
 
-          if counter % 10 == 0:
+          if counter % 10 == 0: # why 10? 
             print("Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" \
               % ((ep+1), counter, time.time()-start_time, err))
 
@@ -111,7 +111,7 @@ class SRCNN(object):
     else:
       print("Testing...")
 
-      result = self.pred.eval({self.images: train_data, self.labels: train_label})
+      result = self.pred.eval({self.images: train_data, self.labels: train_label}) # 不太清楚这里的语法
 
       result = merge(result, [nx, ny])
       result = result.squeeze()
