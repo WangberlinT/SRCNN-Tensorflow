@@ -67,14 +67,16 @@ def prepare_data(sess, dataset):
     
     For train dataset, output data would be ['.../t1.bmp', '.../t2.bmp', ..., '.../t99.bmp']
   """
+  image_formats = ["*.jpg", "*.bmp", "*.png"]
+  data = []
   if FLAGS.is_train:
-    filenames = os.listdir(dataset)
     data_dir = os.path.join(os.getcwd(), dataset)
-    data = glob.glob(os.path.join(data_dir, "*.bmp"))
+    for img_format in image_formats:
+        data.extend(glob.glob(os.path.join(data_dir, img_format))) 
   else:
-    data_dir = os.path.join(os.sep, (os.path.join(os.getcwd(), dataset)), "Set5")
-    data = glob.glob(os.path.join(data_dir, "*.bmp"))
-
+    data_dir = os.path.join(os.sep, (os.path.join(os.getcwd(), dataset)), FLAGS.dev_dir)
+    for img_format in image_formats:
+        data.extend(glob.glob(os.path.join(data_dir, img_format)))
   return data
 
 def make_data(sess, data, label):
@@ -157,7 +159,7 @@ def input_setup(sess, config):
           sub_label_sequence.append(sub_label)
 
   else:
-    input_, label_ = preprocess(data[1], config.scale) # 指定了只选第二个，也就是butterfly
+    input_, label_ = preprocess(data[0], config.scale) # 指定了只选第二个，也就是butterfly
 
     if len(input_.shape) == 3:
       h, w, _ = input_.shape

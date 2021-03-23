@@ -8,7 +8,7 @@ import pprint
 import os
 
 flags = tf.app.flags
-flags.DEFINE_integer("epoch", 1000, "Number of epoch [15000]")
+flags.DEFINE_integer("epoch", 50, "Number of epoch [15000]")
 flags.DEFINE_integer("batch_size", 128, "The size of batch images [128]")
 flags.DEFINE_integer("image_size", 33, "The size of image to use [33]")
 flags.DEFINE_integer("label_size", 21, "The size of label to produce [21]")
@@ -19,6 +19,7 @@ flags.DEFINE_integer("stride", 21, "The size of stride to apply input image [14 
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Name of checkpoint directory [checkpoint]")
 flags.DEFINE_string("sample_dir", "sample", "Name of sample directory [sample]")
 flags.DEFINE_boolean("is_train", False, "True for training, False for testing [True]")
+flags.DEFINE_string("dev_dir", "Dev", "Name of dev directory [Dev]")
 FLAGS = flags.FLAGS
 
 pp = pprint.PrettyPrinter()
@@ -40,7 +41,10 @@ def main(_):
                   checkpoint_dir=FLAGS.checkpoint_dir,
                   sample_dir=FLAGS.sample_dir)
 
-    srcnn.train(FLAGS)
+    if not FLAGS.is_train:
+        srcnn.test(FLAGS)
+    else:
+        srcnn.train(FLAGS)
     
 if __name__ == '__main__':
   tf.app.run()

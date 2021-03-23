@@ -62,6 +62,27 @@ class SRCNN(object):
 
     self.saver = tf.train.Saver()
 
+  def test(self, config):
+    """
+    TODO
+    Input: images from indicated directory
+    Output: bicubic image and SRCNN image pairs, PSNR of each output(bicubic, SRCNN)
+    """
+    nx, ny = input_setup(self.sess, config)
+    data_dir = os.path.join('./{}'.format(config.checkpoint_dir), "test.h5")
+
+    train_data, train_label = read_data(data_dir)
+
+    self.loadModel()
+
+    result = self.pred.eval({self.images: train_data, self.labels: train_label}) 
+
+    result = merge(result, [nx, ny])
+    result = result.squeeze()
+    image_path = os.path.join(os.getcwd(), config.sample_dir)
+    image_path = os.path.join(image_path, "test_image.png")
+    imsave(result, image_path)
+
   def train(self, config):
     if config.is_train:
       input_setup(self.sess, config)
@@ -83,10 +104,7 @@ class SRCNN(object):
     counter = 0
     start_time = time.time()
 
-    if self.load(self.checkpoint_dir):
-      print(" [*] Load SUCCESS")
-    else:
-      print(" [!] Load failed...")
+    self.loadModel()
 
     if config.is_train:
       print("Training...")
@@ -115,9 +133,15 @@ class SRCNN(object):
 
       result = merge(result, [nx, ny])
       result = result.squeeze()
-      image_path = os.path.join(os.getcwd(), config.sample_dir)
-      image_path = os.path.join(image_path, "test_image.png")
+      image_dir = os.path.join(os.getcwd(), config.sample_dir)
+      image_path = os.path.join(image_dir, "test_image.png")
       imsave(result, image_path)
+
+  def loadModel(self):
+    if self.load(self.checkpoint_dir):
+      print(" [*] Load SUCCESS")
+    else:
+      print(" [!] Load failed...")
 
   def model(self):
     conv1 = tf.nn.relu(tf.nn.conv2d(self.images, self.weights['w1'], strides=[1,1,1,1], padding='VALID') + self.biases['b1'])
