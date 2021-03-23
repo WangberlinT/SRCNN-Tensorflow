@@ -2,7 +2,9 @@ from utils import (
   read_data, 
   input_setup, 
   imsave,
-  merge
+  merge,
+  prepare_data,
+  toimage
 )
 
 import time
@@ -68,20 +70,38 @@ class SRCNN(object):
     Input: images from indicated directory
     Output: bicubic image and SRCNN image pairs, PSNR of each output(bicubic, SRCNN)
     """
-    nx, ny = input_setup(self.sess, config)
-    data_dir = os.path.join('./{}'.format(config.checkpoint_dir), "test.h5")
-
-    train_data, train_label = read_data(data_dir)
-
     self.loadModel()
+    image_paths = prepare_data(self.sess, dataset="Test")
+    for image_path in image_paths:
+        image_dir, image_name = os.path.split(image_path)
+        nx, ny, bicubic_img, ground_truth = input_setup(self.sess, config, image_path)
+        data_dir = os.path.join('./{}'.format(config.checkpoint_dir), "test.h5")
 
-    result = self.pred.eval({self.images: train_data, self.labels: train_label}) 
+        train_data, train_label = read_data(data_dir)
+        result = self.pred.eval({self.images: train_data, self.labels: train_label}) 
 
-    result = merge(result, [nx, ny])
-    result = result.squeeze()
-    image_path = os.path.join(os.getcwd(), config.sample_dir)
-    image_path = os.path.join(image_path, "test_image.png")
-    imsave(result, image_path)
+        result = merge(result, [nx, ny])
+        result = result.squeeze()
+        image_dir = os.path.join(os.getcwd(), config.sample_dir)
+        image_path = os.path.join(image_dir, image_name)
+        bicubic_path = os.path.join(image_dir, "bicubic_"+image_name)
+
+        px = 1/plt.rcParams['figure.dpi']  # pixel in inches
+        width = max(ground_truth.shape[0], ground_truth.shape[1])
+        
+        # plot image
+        plt.figure(image_name, figsize=(2*width*px,3*width*px))
+        ax1 = plt.subplot(3,1,1)
+        ax1.set_title("SRCNN")
+        plt.imshow(toimage(result), cmap='gray')
+        ax2 = plt.subplot(3,1,2)
+        ax2.set_title("Bicubic")
+        plt.imshow(toimage(bicubic_img), cmap='gray')
+        ax3 = plt.subplot(3,1,3)
+        ax3.set_title("Ground Truth")
+        plt.imshow(toimage(ground_truth), cmap='gray')
+        plt.savefig(image_path)
+        plt.close()
 
   def train(self, config):
     if config.is_train:
@@ -126,7 +146,7 @@ class SRCNN(object):
           if counter % 500 == 0:
             self.save(config.checkpoint_dir, counter)
 
-    else:
+    else: # TODO change to output 3x image
       print("Testing...")
 
       result = self.pred.eval({self.images: train_data, self.labels: train_label}) # 不太清楚这里的语法

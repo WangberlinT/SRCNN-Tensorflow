@@ -123,9 +123,14 @@ def modcrop(image, scale=3):
     image = image[0:h, 0:w]
   return image
 
-def input_setup(sess, config):
+def input_setup(sess, config, test_image_path=None):
   """
   Read image files and make their sub-images and saved them as a h5 file format.
+  if TEST return
+  nx : patch number over x direction,
+  ny : patch number over y direction,
+  input_ : input image with bibicu 
+  label_: ground_turth
   """
   # Load data path
   if config.is_train:
@@ -159,7 +164,7 @@ def input_setup(sess, config):
           sub_label_sequence.append(sub_label)
 
   else:
-    input_, label_ = preprocess(data[0], config.scale) # 指定了只选第二个，也就是butterfly
+    input_, label_ = preprocess(test_image_path, config.scale) 
 
     if len(input_.shape) == 3:
       h, w, _ = input_.shape
@@ -192,10 +197,13 @@ def input_setup(sess, config):
   make_data(sess, arrdata, arrlabel)
 
   if not config.is_train:
-    return nx, ny
+    return nx, ny, input_, label_
     
 def imsave(image, path):
   return scipy.misc.imsave(path, image)
+
+def toimage(image):
+    return scipy.misc.toimage(image, channel_axis=2)
 
 def merge(images, size):
   h, w = images.shape[1], images.shape[2]
