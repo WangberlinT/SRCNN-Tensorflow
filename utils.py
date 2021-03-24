@@ -12,7 +12,7 @@ from PIL import Image  # for loading images as YCbCr format
 import scipy.misc
 import scipy.ndimage
 import numpy as np
-
+import math
 import tensorflow as tf
 
 try:
@@ -145,47 +145,12 @@ def input_setup(sess, config, test_image_path=None):
   if config.is_train:
     for i in xrange(len(data)):
       input_, label_ = preprocess(data[i], config.scale)
-
-      if len(input_.shape) == 3:
-        h, w, _ = input_.shape
-      else:
-        h, w = input_.shape
-
-      for x in range(0, h-config.image_size+1, config.stride):
-        for y in range(0, w-config.image_size+1, config.stride):
-          sub_input = input_[x:x+config.image_size, y:y+config.image_size] # [33 x 33]
-          sub_label = label_[x+int(padding):x+int(padding)+config.label_size, y+int(padding):y+int(padding)+config.label_size] # [21 x 21]
-
-          # Make channel value
-          sub_input = sub_input.reshape([config.image_size, config.image_size, 1])  
-          sub_label = sub_label.reshape([config.label_size, config.label_size, 1])
-
-          sub_input_sequence.append(sub_input)
-          sub_label_sequence.append(sub_label)
-
+      input_sequence, label_sequence, nx, ny = imslice(input_, label_, config)
+      sub_input_sequence.extend(input_sequence)
+      sub_label_sequence.extend(label_sequence)
   else:
     input_, label_ = preprocess(test_image_path, config.scale) 
-
-    if len(input_.shape) == 3:
-      h, w, _ = input_.shape
-    else:
-      h, w = input_.shape
-
-    # Numbers of sub-images in height and width of image are needed to compute merge operation.
-    nx = ny = 0 
-    for x in range(0, h-config.image_size+1, config.stride):
-      nx += 1; ny = 0
-      for y in range(0, w-config.image_size+1, config.stride):
-        ny += 1
-        sub_input = input_[x:x+config.image_size, y:y+config.image_size] # [33 x 33]
-        sub_label = label_[x+int(padding):x+int(padding)+config.label_size, y+int(padding):y+int(padding)+config.label_size] # [21 x 21]
-        
-        sub_input = sub_input.reshape([config.image_size, config.image_size, 1])  
-        sub_label = sub_label.reshape([config.label_size, config.label_size, 1])
-
-        sub_input_sequence.append(sub_input)
-        sub_label_sequence.append(sub_label)
-
+    sub_input_sequence, sub_label_sequence, nx, ny = imslice(input_, label_, config)
   """
   len(sub_input_sequence) : the number of sub_input (33 x 33 x ch) in one image
   (sub_input_sequence[0]).shape : (33, 33, 1)
@@ -198,12 +163,72 @@ def input_setup(sess, config, test_image_path=None):
 
   if not config.is_train:
     return nx, ny, input_, label_
-    
+
+def imslice(input_, label_, config):
+    """
+    slice input and  to indicated size
+    return subinput sequences and label sequences, and nx, ny 
+    """
+    sub_input_sequence = []
+    sub_label_sequence = []
+
+    padding = abs(config.image_size - config.label_size) / 2 # 6
+
+    if len(input_.shape) == 3:
+      h, w, _ = input_.shape
+    else:
+      h, w = input_.shape
+    nx = ny = 0
+
+    for x in range(0, h-config.image_size+1, config.stride):
+        nx += 1; ny = 0
+        for y in range(0, w-config.image_size+1, config.stride):
+            ny += 1
+            sub_input = input_[x:x+config.image_size, y:y+config.image_size] # [33 x 33]
+            sub_label = label_[x+int(padding):x+int(padding)+config.label_size, y+int(padding):y+int(padding)+config.label_size] # [21 x 21]
+
+            # Make channel value
+            sub_input = sub_input.reshape([config.image_size, config.image_size, 1])  
+            sub_label = sub_label.reshape([config.label_size, config.label_size, 1])
+
+            sub_input_sequence.append(sub_input)
+            sub_label_sequence.append(sub_label)
+        
+    return sub_input_sequence, sub_label_sequence, nx, ny
 def imsave(image, path):
   return scipy.misc.imsave(path, image)
 
 def toimage(image):
     return scipy.misc.toimage(image, channel_axis=2)
+
+def PSNR(pred, ground_truth):
+    """
+    pred, ground_truth both are (?, fsub, fsub, 1) array
+    return PSNR of pred and center of gt
+    """
+    pred_shape = pred.shape
+    gt_shape = ground_truth.shape
+    if len(pred_shape) < 3 or len(gt_shape) < 3:
+        return -1 # error
+    padding = abs(pred_shape[1] - gt_shape[1]) // 2 # 6
+    pred_ = np.reshape(pred, (pred_shape[0], pred_shape[1], pred_shape[2]))
+    gt = np.reshape(ground_truth, (gt_shape[0], gt_shape[1], gt_shape[2]))
+
+    if gt.shape[1] > pred_.shape[1]:
+        gt = gt[:, padding:gt_shape[1] - padding, padding:gt_shape[2] - padding]
+    elif pred_.shape[1] > gt.shape[1]:
+        pred_ = pred_[:, padding:pred_shape[1] - padding, padding:pred_shape[2] - padding]
+
+    imdiff = gt - pred_
+    rmse = math.sqrt(np.mean(imdiff ** 2))
+    if rmse == 0:
+        return 100
+    return 20 * math.log10(255.0 / rmse)
+
+
+
+
+
 
 def merge(images, size):
   h, w = images.shape[1], images.shape[2]

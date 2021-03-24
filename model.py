@@ -4,7 +4,8 @@ from utils import (
   imsave,
   merge,
   prepare_data,
-  toimage
+  toimage,
+  PSNR
 )
 
 import time
@@ -77,10 +78,13 @@ class SRCNN(object):
         nx, ny, bicubic_img, ground_truth = input_setup(self.sess, config, image_path)
         data_dir = os.path.join('./{}'.format(config.checkpoint_dir), "test.h5")
 
-        train_data, train_label = read_data(data_dir)
+        train_data, train_label = read_data(data_dir) # train_data(bicubic):(33, 33); train_label(gt):(21, 21)
         result = self.pred.eval({self.images: train_data, self.labels: train_label}) 
 
-        result = merge(result, [nx, ny])
+        PSNR_bicubic = PSNR(train_data, train_label)
+        PSNR_srcnn = PSNR(result, train_label)
+
+        result = merge(result, [nx, ny]) # result(SRCNN):(21, 21)
         result = result.squeeze()
         image_dir = os.path.join(os.getcwd(), config.sample_dir)
         image_path = os.path.join(image_dir, image_name)
@@ -92,10 +96,10 @@ class SRCNN(object):
         # plot image
         plt.figure(image_name, figsize=(2*width*px,3*width*px))
         ax1 = plt.subplot(3,1,1)
-        ax1.set_title("SRCNN")
+        ax1.set_title("SRCNN PSNR - " + str(PSNR_srcnn))
         plt.imshow(toimage(result), cmap='gray')
         ax2 = plt.subplot(3,1,2)
-        ax2.set_title("Bicubic")
+        ax2.set_title("Bicubic PSNR -" + str(PSNR_bicubic))
         plt.imshow(toimage(bicubic_img), cmap='gray')
         ax3 = plt.subplot(3,1,3)
         ax3.set_title("Ground Truth")
@@ -128,8 +132,9 @@ class SRCNN(object):
 
     if config.is_train:
       print("Training...")
-
+      loss = []
       for ep in xrange(config.epoch):
+        err = 1e10
         # Run by batch images
         batch_idxs = len(train_data) // config.batch_size
         for idx in xrange(0, batch_idxs):
@@ -145,17 +150,12 @@ class SRCNN(object):
 
           if counter % 500 == 0:
             self.save(config.checkpoint_dir, counter)
-
-    else: # TODO change to output 3x image
-      print("Testing...")
-
-      result = self.pred.eval({self.images: train_data, self.labels: train_label}) # 不太清楚这里的语法
-
-      result = merge(result, [nx, ny])
-      result = result.squeeze()
-      image_dir = os.path.join(os.getcwd(), config.sample_dir)
-      image_path = os.path.join(image_dir, "test_image.png")
-      imsave(result, image_path)
+        loss.append(err)
+    plt.title("SRCNN Train")
+    plt.xlabel("epoch")
+    plt.ylabel("Loss - MSE")
+    plt.plot(range(config.epoch), loss)
+    plt.savefig("./train_loss.png")
 
   def loadModel(self):
     if self.load(self.checkpoint_dir):
