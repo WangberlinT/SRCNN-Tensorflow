@@ -67,12 +67,12 @@ class SRCNN(object):
 
   def test(self, config):
     """
-    TODO
-    Input: images from indicated directory
-    Output: bicubic image and SRCNN image pairs, PSNR of each output(bicubic, SRCNN)
+    Output: bicubic image and SRCNN image pairs
     """
     self.loadModel()
     image_paths = prepare_data(self.sess, dataset="Test")
+    avg_psnr_srcnn = 0
+    avg_psnr_bicubic = 0
     for image_path in image_paths:
         image_dir, image_name = os.path.split(image_path)
         nx, ny, bicubic_img, ground_truth = input_setup(self.sess, config, image_path)
@@ -83,6 +83,8 @@ class SRCNN(object):
 
         PSNR_bicubic = PSNR(train_data, train_label)
         PSNR_srcnn = PSNR(result, train_label)
+        avg_psnr_bicubic += PSNR_bicubic
+        avg_psnr_srcnn += PSNR_srcnn
 
         result = merge(result, [nx, ny]) # result(SRCNN):(21, 21)
         result = result.squeeze()
@@ -96,16 +98,19 @@ class SRCNN(object):
         # plot image
         plt.figure(image_name, figsize=(2*width*px,3*width*px))
         ax1 = plt.subplot(3,1,1)
-        ax1.set_title("SRCNN PSNR - " + str(PSNR_srcnn))
+        ax1.set_title("SRCNN - PSNR - " + str(PSNR_srcnn))
         plt.imshow(toimage(result), cmap='gray')
         ax2 = plt.subplot(3,1,2)
-        ax2.set_title("Bicubic PSNR -" + str(PSNR_bicubic))
+        ax2.set_title("Bicubic - PSNR - " + str(PSNR_bicubic))
         plt.imshow(toimage(bicubic_img), cmap='gray')
         ax3 = plt.subplot(3,1,3)
         ax3.set_title("Ground Truth")
         plt.imshow(toimage(ground_truth), cmap='gray')
         plt.savefig(image_path)
         plt.close()
+    avg_psnr_srcnn /= len(image_paths)
+    avg_psnr_bicubic /= len(image_paths)
+    print("average PSNR of srcnn = {}\n average PSNR of bicubic = {}".format(avg_psnr_srcnn, avg_psnr_bicubic))
 
   def train(self, config):
     if config.is_train:

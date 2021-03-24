@@ -54,7 +54,7 @@ def preprocess(path, scale=3):
   # Must be normalized
   image = image / 255.
   label_ = label_ / 255.
-  # 使输入图片模糊
+  
   input_ = scipy.ndimage.interpolation.zoom(label_, (1./scale), prefilter=False)
   input_ = scipy.ndimage.interpolation.zoom(input_, (scale/1.), prefilter=False)
 
@@ -140,7 +140,6 @@ def input_setup(sess, config, test_image_path=None):
 
   sub_input_sequence = []
   sub_label_sequence = []
-  padding = abs(config.image_size - config.label_size) / 2 # 6
 
   if config.is_train:
     for i in xrange(len(data)):
@@ -223,7 +222,7 @@ def PSNR(pred, ground_truth):
     rmse = math.sqrt(np.mean(imdiff ** 2))
     if rmse == 0:
         return 100
-    return 20 * math.log10(255.0 / rmse)
+    return 20 * math.log10(1.0 / rmse)
 
 
 
